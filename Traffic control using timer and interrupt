@@ -1,0 +1,97 @@
+#include <xc.h>          // PIC microcontroller header file
+#include <pic.h>         // PIC specific definitions
+
+#define _XTAL_FREQ 16000000   // Crystal frequency 16 MHz
+#define LED PORTB             // PORTB as LED output port
+
+// --- Configuration bits ---
+#pragma config FOSC = HS      // High speed crystal oscillator
+#pragma config WDTE = OFF     // Watchdog timer OFF
+#pragma config PWRTE = OFF    // Power-up timer OFF
+#pragma config BOREN = OFF    // Brown out reset OFF
+#pragma config LVP = OFF      // Low voltage programming OFF
+#pragma config CPD = OFF      // Data memory protection OFF
+#pragma config WRT = OFF      // Flash write protection OFF
+#pragma config CP = OFF       // Code protection OFF
+
+int tick_count = 0;           // Counts 50 ms timer ticks
+int seconds = 0;              // Stores seconds for traffic light timing
+
+// --- Interrupt Service Routine ---
+void __interrupt() ISR(void)  // Interrupt function
+{
+
+if (INTCONbits.TMR0IF == 1)   // Check if Timer0 overflow caused interrupt
+{
+
+INTCONbits.TMR0IF = 0;        // Clear Timer0 interrupt flag
+
+TMR0 = 500;                   // Reload Timer0 value for next 50 ms
+
+tick_count++;                 // Increase tick count (every 50 ms)
+
+if (tick_count >= 500)        // If 500 ticks completed
+{
+seconds++;                    // 100 × 50 ms = 5 second
+tick_count = 0;               // Reset tick counter
+}
+
+}
+
+}
+
+// --- Main Program ---
+int main(void)
+{
+
+TRISB = 0;                    // Set PORTB as output (LEDs)
+
+PORTBbits.RB0 = 0;            // Red LED OFF initially
+PORTBbits.RB1 = 0;            // Yellow LED OFF initially
+PORTBbits.RB2 = 0;            // Green LED OFF initially
+
+// --- Timer0 Configuration ---
+OPTION_REGbits.T0CS = 0;      // Use internal instruction clock
+OPTION_REGbits.PSA = 0;       // Assign prescaler to Timer0
+OPTION_REGbits.PS = 0b111;    // Prescaler value 1:256
+
+TMR0 = 100;                   // Load Timer0 starting value
+
+// --- Enable Interrupts ---
+INTCONbits.TMR0IE = 1;        // Enable Timer0 overflow interrupt
+INTCONbits.PEIE = 1;          // Enable peripheral interrupts
+INTCONbits.GIE = 1;           // Enable global interrupts
+
+// --- Infinite Loop ---
+while(1)
+{
+
+// Green light for 5 seconds
+if(seconds < 5)
+{
+RB0 = 0;                      // Red OFF
+RB1 = 0;                      // Yellow OFF
+RB2 = 1;                      // Green ON
+}
+
+// Yellow light for 2 seconds
+else if(seconds < 7)
+{
+RB0 = 0;                      // Red OFF
+RB1 = 1;                      // Yellow ON
+RB2 = 0;                      // Green OFF
+}
+
+// Red light for 5 seconds
+else if(seconds < 12)
+{
+RB0 = 1;                      // Red ON
+RB1 = 0;                      // Yellow OFF
+RB2 = 0;                      // Green OFF
+}
+
+}
+
+return 0;                     // End of program
+
+}
